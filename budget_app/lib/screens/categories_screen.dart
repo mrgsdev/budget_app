@@ -63,10 +63,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               return true;
             },
 
-            onDismissed: (_) {
-              setState(() {
-                CategoriesData.remove(i);
-              });
+            onDismissed: (_) async {
+              await CategoriesData.remove(i);
+              setState(() {});
             },
 
             child: ListTile(

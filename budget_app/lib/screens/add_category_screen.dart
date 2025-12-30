@@ -41,53 +41,53 @@ class _AddCategoryScreenState extends State<AddCategoryScreen> {
     _selectedColor = widget.category?.color ?? Colors.blue;
   }
 
-  void _save() {
-  final name = _controller.text.trim();
-  if (name.isEmpty) return;
+  Future<void> _save() async {
+    final name = _controller.text.trim();
+    if (name.isEmpty) return;
 
-  // 🔒 Ограничение: максимум 8 категорий
-  final isNew = widget.category == null;
-  if (isNew && CategoriesData.categories.length >= _maxCategories) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Можно создать не более 8 категорий'),
-        backgroundColor: Colors.red,
-      ),
+    // 🔒 Ограничение: максимум 8 категорий
+    final isNew = widget.category == null;
+    if (isNew && CategoriesData.categories.length >= _maxCategories) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Можно создать не более 8 категорий'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // 🔍 Проверка на дубликат имени
+    final exists = CategoriesData.categories.any(
+      (c) =>
+          c.name.toLowerCase() == name.toLowerCase() &&
+          c != widget.category,
     );
-    return;
-  }
 
-  // 🔍 Проверка на дубликат имени
-  final exists = CategoriesData.categories.any(
-    (c) =>
-        c.name.toLowerCase() == name.toLowerCase() &&
-        c != widget.category,
-  );
+    if (exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Такая категория уже существует'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
-  if (exists) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Такая категория уже существует'),
-        backgroundColor: Colors.red,
-      ),
+    final category = Category(
+      name: name,
+      icon: _selectedIcon,
+      color: _selectedColor,
     );
-    return;
+
+    if (widget.index != null) {
+      await CategoriesData.update(widget.index!, category);
+    } else {
+      await CategoriesData.add(category);
+    }
+
+    Navigator.pop(context, true);
   }
-
-  final category = Category(
-    name: name,
-    icon: _selectedIcon,
-    color: _selectedColor,
-  );
-
-  if (widget.index != null) {
-    CategoriesData.update(widget.index!, category);
-  } else {
-    CategoriesData.add(category);
-  }
-
-  Navigator.pop(context, true);
-}
 
   @override
   Widget build(BuildContext context) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/expense.dart';
 import '../models/currency.dart';
+import '../services/storage_service.dart';
 import 'add_expense_screen.dart';
 import 'budget_setup_screen.dart';
 
@@ -19,9 +20,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _balance = 45000;
-  Currency _currency = Currency.rub;
+  late int _balance;
+  late Currency _currency;
   final List<Expense> _expenses = [];
+  final StorageService _storageService = StorageService();
+  bool _isLoading = true;
 
   // ================= CATEGORY META =================
 
@@ -40,6 +43,38 @@ class _HomeScreenState extends State<HomeScreen> {
     'Развлечения': Colors.deepPurple,
     'Здоровье': Colors.red,
   };
+
+  // ================= INITIALIZATION =================
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    
+    // Загружаем данные из хранилища
+    _balance = _storageService.loadBalance();
+    _currency = _storageService.loadCurrency();
+    _expenses.clear();
+    _expenses.addAll(_storageService.loadExpenses());
+    
+    setState(() => _isLoading = false);
+  }
+
+  Future<void> _saveExpenses() async {
+    await _storageService.saveExpenses(_expenses);
+  }
+
+  Future<void> _saveBalance() async {
+    await _storageService.saveBalance(_balance);
+  }
+
+  Future<void> _saveCurrency() async {
+    await _storageService.saveCurrency(_currency);
+  }
 
   // ================= DATE =================
 
@@ -91,6 +126,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _expenses.insert(0, expense);
         _balance -= expense.amount;
       });
+      await _saveExpenses();
+      await _saveBalance();
     }
   }
 
@@ -110,6 +147,8 @@ class _HomeScreenState extends State<HomeScreen> {
         _balance = result['amount'];
         _currency = result['currency'];
       });
+      await _saveBalance();
+      await _saveCurrency();
     }
   }
 
@@ -126,6 +165,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
       body: SafeArea(
@@ -198,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             _colors[e.category] ?? Colors.grey;
 
 return Dismissible(
-  key: ValueKey(e.hashCode),
+  key: ValueKey('${e.title}_${e.amount}_${e.date.millisecondsSinceEpoch}_$i'),
   direction: DismissDirection.endToStart,
   background: Container(
     alignment: Alignment.centerRight,
@@ -206,11 +253,13 @@ return Dismissible(
     color: Colors.red,
     child: const Icon(Icons.delete, color: Colors.white),
   ),
-  onDismissed: (_) {
+  onDismissed: (_) async {
     setState(() {
       _balance += e.amount;   // вернуть деньги
       _expenses.removeAt(i);
     });
+    await _saveExpenses();
+    await _saveBalance();
   },
 
   // 👇 ВАЖНО: GestureDetector
@@ -233,6 +282,8 @@ return Dismissible(
           _balance -= updated.amount;   // вычесть новое
           _expenses[i] = updated;       // заменить расход
         });
+        await _saveExpenses();
+        await _saveBalance();
       }
     },
 
