@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import '../models/expense.dart';
 import '../models/currency.dart';
+import 'add_expense_screen.dart';
 import 'budget_setup_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -11,10 +13,28 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _balance = 45000;
-  int _spentToday = 0;
   Currency _currency = Currency.rub;
+  final List<Expense> _expenses = [];
 
-  // ---------- DATE & BUDGET LOGIC ----------
+  // ================= CATEGORY META =================
+
+  static const Map<String, IconData> _icons = {
+    'Еда': Icons.local_cafe,
+    'Транспорт': Icons.directions_car,
+    'Дом': Icons.home,
+    'Развлечения': Icons.videogame_asset,
+    'Здоровье': Icons.favorite,
+  };
+
+  static const Map<String, Color> _colors = {
+    'Еда': Colors.orange,
+    'Транспорт': Colors.purple,
+    'Дом': Colors.blueGrey,
+    'Развлечения': Colors.deepPurple,
+    'Здоровье': Colors.red,
+  };
+
+  // ================= DATE =================
 
   int _remainingDays() {
     final now = DateTime.now();
@@ -22,22 +42,50 @@ class _HomeScreenState extends State<HomeScreen> {
     return lastDay.day - now.day + 1;
   }
 
+  int get _spentToday {
+    final today = DateTime.now();
+    return _expenses
+        .where((e) =>
+            e.date.year == today.year &&
+            e.date.month == today.month &&
+            e.date.day == today.day)
+        .fold(0, (sum, e) => sum + e.amount);
+  }
+
   int _dailyLimit() {
     final days = _remainingDays();
-    if (days <= 0) return 0;
+    if (days == 0) return 0;
     return (_balance / days).floor();
   }
 
-  int _availableToday() {
-    return _dailyLimit() - _spentToday;
-  }
+  int _availableToday() => _dailyLimit() - _spentToday;
 
   double _progress() {
-    if (_dailyLimit() == 0) return 0;
-    return _spentToday / _dailyLimit();
+    final limit = _dailyLimit();
+    if (limit == 0) return 0;
+    return _spentToday / limit;
   }
 
-  // ---------- NAVIGATION ----------
+  // ================= NAVIGATION =================
+
+  Future<void> _openAddExpense() async {
+    final expense = await Navigator.push<Expense>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddExpenseScreen(
+          balance: _balance,
+          currency: _currency,
+        ),
+      ),
+    );
+
+    if (expense != null) {
+      setState(() {
+        _expenses.insert(0, expense);
+        _balance -= expense.amount;
+      });
+    }
+  }
 
   Future<void> _openBudgetSetup() async {
     final result = await Navigator.push<Map<String, dynamic>>(
@@ -58,22 +106,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // ---------- FORMAT ----------
+  // ================= FORMAT =================
 
   String _format(int value) {
-    final s = value.toString();
-    final buffer = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      buffer.write(s[i]);
-      final indexFromEnd = s.length - i - 1;
-      if (indexFromEnd % 3 == 0 && indexFromEnd != 0) {
-        buffer.write(' ');
-      }
-    }
-    return buffer.toString();
+    return value.toString().replaceAllMapped(
+          RegExp(r'\B(?=(\d{3})+(?!\d))'),
+          (m) => ' ',
+        );
   }
 
-  // ---------- UI ----------
+  // ================= UI =================
 
   @override
   Widget build(BuildContext context) {
@@ -83,8 +125,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             const SizedBox(height: 12),
-            _Header(),
+            const _Header(),
             const SizedBox(height: 16),
+
             _DailyBudgetCard(
               available: _availableToday(),
               spent: _spentToday,
@@ -93,64 +136,112 @@ class _HomeScreenState extends State<HomeScreen> {
               currency: _currency,
               format: _format,
             ),
+
             const SizedBox(height: 16),
-            _InfoCards(
-              balance: _format(_balance),
-              currency: _currency,
-              remainingDays: _remainingDays(),
-              onTapBalance: _openBudgetSetup,
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: _openBudgetSetup,
+                      child: _InfoCard(
+                        title: 'Остаток',
+                        value: '${_format(_balance)} ${_currency.symbol}',
+                        subtitle: '+12% к прошлому',
+                        icon: Icons.account_balance_wallet,
+                        subtitleColor: Colors.green,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _InfoCard(
+                      title: 'Осталось дней',
+                      value: '${_remainingDays()} дней',
+                      subtitle: '',
+                      icon: Icons.calendar_today,
+                      subtitleColor: Colors.transparent,
+                    ),
+                  ),
+                ],
+              ),
             ),
+
             const SizedBox(height: 24),
-            _ExpensesHeader(),
-            const SizedBox(height: 8),
-            const Expanded(child: _ExpensesList()),
+            const _ExpensesHeader(),
+
+            Expanded(
+              child: _expenses.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Расходы появятся здесь',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _expenses.length,
+                      itemBuilder: (_, i) {
+                        final e = _expenses[i];
+                        final icon =
+                            _icons[e.category] ?? Icons.attach_money;
+                        final color =
+                            _colors[e.category] ?? Colors.grey;
+
+                        return _ExpenseItem(
+                          title: e.title,
+                          subtitle: '${e.category} • сегодня',
+                          amount:
+                              '-${_format(e.amount)} ${_currency.symbol}',
+                          icon: icon,
+                          color: color,
+                        );
+                      },
+                    ),
+            ),
           ],
         ),
       ),
-      floatingActionButton: const _AddButton(),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: const Color(0xFFD6C19A),
+        onPressed: _openAddExpense,
+        child: const Icon(Icons.add, color: Colors.black),
+      ),
       bottomNavigationBar: const _BottomNav(),
     );
   }
 }
 
-//
-// ---------------- HEADER ----------------
-//
+// ================= HEADER =================
 
 class _Header extends StatelessWidget {
+  const _Header();
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: const Color(0xFFEDE6D8),
-            child: const Icon(Icons.person, color: Colors.black54),
+            backgroundColor: Color(0xFFEDE6D8),
+            child: Icon(Icons.person, color: Colors.black54),
           ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text('Добрый вечер,', style: TextStyle(color: Colors.grey)),
-              Text(
-                'Александр',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-            ],
+          SizedBox(width: 12),
+          Text(
+            'Добрый вечер, Александр',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
-          const Spacer(),
-          const Icon(Icons.notifications_none, size: 28),
         ],
       ),
     );
   }
 }
 
-//
-// ---------------- DAILY BUDGET CARD ----------------
-//
+// ================= DAILY CARD =================
 
 class _DailyBudgetCard extends StatelessWidget {
   final int available;
@@ -178,12 +269,7 @@ class _DailyBudgetCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
           gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF1E2E23),
-              Color(0xFF0F1A14),
-            ],
+            colors: [Color(0xFF1E2E23), Color(0xFF0F1A14)],
           ),
         ),
         child: Column(
@@ -201,7 +287,7 @@ class _DailyBudgetCard extends StatelessWidget {
                 color: Color(0xFFD6C19A),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Text(
@@ -239,56 +325,83 @@ class _DailyBudgetCard extends StatelessWidget {
   }
 }
 
-//
-// ---------------- INFO CARDS ----------------
-//
+// ================= EXPENSES =================
 
-class _InfoCards extends StatelessWidget {
-  final String balance;
-  final Currency currency;
-  final int remainingDays;
-  final VoidCallback onTapBalance;
-
-  const _InfoCards({
-    required this.balance,
-    required this.currency,
-    required this.remainingDays,
-    required this.onTapBalance,
-  });
+class _ExpensesHeader extends StatelessWidget {
+  const _ExpensesHeader();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: onTapBalance,
-              child: _InfoCard(
-                title: 'Остаток',
-                value: '$balance ${currency.symbol}',
-                subtitle: '+12% к прошлому',
-                icon: Icons.account_balance_wallet,
-                subtitleColor: Colors.green,
-              ),
-            ),
+          Text(
+            'Сегодня',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _InfoCard(
-              title: 'Осталось дней',
-              value: '$remainingDays дней',
-              subtitle: '',
-              icon: Icons.calendar_today,
-              subtitleColor: Colors.transparent,
-            ),
+          Spacer(),
+          Text(
+            'Показать все',
+            style: TextStyle(color: Color(0xFFD6C19A)),
           ),
         ],
       ),
     );
   }
 }
+
+class _ExpenseItem extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String amount;
+  final IconData icon;
+  final Color color;
+
+  const _ExpenseItem({
+    required this.title,
+    required this.subtitle,
+    required this.amount,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: color.withOpacity(0.15),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style:
+                        const TextStyle(fontWeight: FontWeight.w500)),
+                Text(subtitle,
+                    style: const TextStyle(color: Colors.grey)),
+              ],
+            ),
+          ),
+          Text(
+            amount,
+            style:
+                const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ================= INFO CARD =================
 
 class _InfoCard extends StatelessWidget {
   final String title;
@@ -322,7 +435,10 @@ class _InfoCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           if (subtitle.isNotEmpty)
             Text(subtitle, style: TextStyle(color: subtitleColor)),
@@ -332,60 +448,7 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-//
-// ---------------- EXPENSES ----------------
-//
-
-class _ExpensesHeader extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          'Сегодня',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-      ),
-    );
-  }
-}
-
-class _ExpensesList extends StatelessWidget {
-  const _ExpensesList();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Расходы появятся здесь',
-        style: TextStyle(color: Colors.grey),
-      ),
-    );
-  }
-}
-
-//
-// ---------------- FAB ----------------
-//
-
-class _AddButton extends StatelessWidget {
-  const _AddButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return FloatingActionButton(
-      backgroundColor: const Color(0xFFD6C19A),
-      onPressed: () {},
-      child: const Icon(Icons.add, color: Colors.black),
-    );
-  }
-}
-
-//
-// ---------------- BOTTOM NAV ----------------
-//
+// ================= BOTTOM NAV =================
 
 class _BottomNav extends StatelessWidget {
   const _BottomNav();
@@ -398,8 +461,10 @@ class _BottomNav extends StatelessWidget {
       unselectedItemColor: Colors.grey,
       type: BottomNavigationBarType.fixed,
       items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Главная'),
-        BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Отчёты'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.home), label: 'Главная'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart), label: 'Отчёты'),
         BottomNavigationBarItem(
             icon: Icon(Icons.account_balance), label: 'Счета'),
         BottomNavigationBarItem(
