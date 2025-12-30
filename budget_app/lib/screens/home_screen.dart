@@ -52,8 +52,19 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadData();
   }
 
+  @override
+  void didUpdateWidget(HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Обновляем данные при обновлении виджета только если изменились расходы
+    if (oldWidget.expenses.length != widget.expenses.length && !_isLoading) {
+      _loadData();
+    }
+  }
+
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
     
     // Загружаем данные из хранилища
     _balance = _storageService.loadBalance();
@@ -61,7 +72,9 @@ class _HomeScreenState extends State<HomeScreen> {
     _expenses.clear();
     _expenses.addAll(_storageService.loadExpenses());
     
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _saveExpenses() async {

@@ -16,9 +16,7 @@ class CategoriesScreen extends StatefulWidget {
 }
 
 class _CategoriesScreenState extends State<CategoriesScreen> {
-  final TextEditingController _searchController = TextEditingController();
   final StorageService _storageService = StorageService();
-  String _searchQuery = '';
   List<Expense> _expenses = [];
 
   @override
@@ -37,7 +35,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   @override
   void dispose() {
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -82,15 +79,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         );
   }
 
-  // Получить отфильтрованные категории
-  List<Category> get _filteredCategories {
-    if (_searchQuery.isEmpty) {
-      return CategoriesData.categories;
-    }
-    return CategoriesData.categories
-        .where((c) => c.name.toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
-  }
 
   // Рассчитать процент использования бюджета
   double _getBudgetPercentage(String categoryName) {
@@ -109,7 +97,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final categories = _filteredCategories;
+    final categories = CategoriesData.categories;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F6),
@@ -119,53 +107,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             // Header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                    onPressed: () => Navigator.pop(context),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Категории расходов',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 40), // Для центрирования
-                ],
-              ),
-            ),
-
-            // Search Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Поиск категории',
-                    hintStyle: TextStyle(color: Colors.grey.shade400),
-                    prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
+              child: Text(
+                'Категории расходов',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
@@ -218,9 +165,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               child: categories.isEmpty
                   ? Center(
                       child: Text(
-                        _searchQuery.isEmpty
-                            ? 'Нет категорий'
-                            : 'Категории не найдены',
+                        'Нет категорий',
                         style: TextStyle(color: Colors.grey.shade400),
                       ),
                     )

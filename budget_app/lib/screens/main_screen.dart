@@ -21,6 +21,7 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final screens = [
       HomeScreen(
+        key: const ValueKey('home_screen'),
         expenses: _expenses,
         onExpensesChanged: () => setState(() {}),
       ),
