@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/expense.dart';
+import '../services/storage_service.dart';
 import 'home_screen.dart';
 import 'categories_screen.dart';
 
@@ -41,7 +42,16 @@ class _MainScreenState extends State<MainScreen> {
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
         onTap: (index) {
-          setState(() => _currentIndex = index);
+          setState(() {
+            _currentIndex = index;
+            // Обновляем список расходов при переключении на вкладку категорий
+            if (index == 1) {
+              // Загружаем актуальные расходы из хранилища
+              final storageService = StorageService();
+              _expenses.clear();
+              _expenses.addAll(storageService.loadExpenses());
+            }
+          });
         },
         items: const [
           BottomNavigationBarItem(

@@ -11,6 +11,7 @@ class StorageService {
   static const String _categoriesBoxName = 'categories';
   static const String _balanceKey = 'balance';
   static const String _currencyKey = 'currency';
+  static const String _categoryBudgetsKey = 'categoryBudgets';
 
   // Получить box для расходов
   Box<ExpenseModel> get _expensesBox => Hive.box<ExpenseModel>(_expensesBoxName);
@@ -116,6 +117,35 @@ class StorageService {
   /// Проверить, есть ли сохраненные категории
   bool hasSavedCategories() {
     return _categoriesBox.isNotEmpty;
+  }
+
+  // ================= CATEGORY BUDGETS =================
+
+  /// Сохранить бюджет для категории
+  Future<void> saveCategoryBudget(String categoryName, int budget) async {
+    final budgets = getCategoryBudgets();
+    budgets[categoryName] = budget;
+    await _settingsBox.put(_categoryBudgetsKey, budgets);
+  }
+
+  /// Получить бюджет для категории (по умолчанию 0)
+  int getCategoryBudget(String categoryName) {
+    final budgets = getCategoryBudgets();
+    return budgets[categoryName] ?? 0;
+  }
+
+  /// Получить все бюджеты категорий
+  Map<String, int> getCategoryBudgets() {
+    final data = _settingsBox.get(_categoryBudgetsKey);
+    if (data == null) return {};
+    return Map<String, int>.from(data);
+  }
+
+  /// Удалить бюджет категории
+  Future<void> removeCategoryBudget(String categoryName) async {
+    final budgets = getCategoryBudgets();
+    budgets.remove(categoryName);
+    await _settingsBox.put(_categoryBudgetsKey, budgets);
   }
 }
 
