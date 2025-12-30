@@ -5,7 +5,7 @@ import 'models/expense_model.dart';
 import 'models/currency.dart';
 import 'models/category_model.dart';
 import 'data/categories_data.dart';
-import 'screens/main_screen.dart';
+import 'app_launcher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: MainScreen(),
+      home: const AppLauncher(),
     );
   }
 }

@@ -12,6 +12,7 @@ class StorageService {
   static const String _balanceKey = 'balance';
   static const String _currencyKey = 'currency';
   static const String _categoryBudgetsKey = 'categoryBudgets';
+  static const String _onboardingKey = 'onboardingCompleted';
 
   // Получить box для расходов
   Box<ExpenseModel> get _expensesBox => Hive.box<ExpenseModel>(_expensesBoxName);
@@ -146,6 +147,16 @@ class StorageService {
     final budgets = getCategoryBudgets();
     budgets.remove(categoryName);
     await _settingsBox.put(_categoryBudgetsKey, budgets);
+  }
+
+  // ================= ONBOARDING =================
+
+  Future<void> setOnboardingCompleted(bool completed) async {
+    await _settingsBox.put(_onboardingKey, completed);
+  }
+
+  bool isOnboardingCompleted() {
+    return _settingsBox.get(_onboardingKey, defaultValue: false);
   }
 }
 
