@@ -190,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         final color =
                             _colors[e.category] ?? Colors.grey;
 
-   return Dismissible(
+return Dismissible(
   key: ValueKey(e.hashCode),
   direction: DismissDirection.endToStart,
   background: Container(
@@ -201,16 +201,41 @@ class _HomeScreenState extends State<HomeScreen> {
   ),
   onDismissed: (_) {
     setState(() {
-      _balance += e.amount;   // возвращаем деньги
+      _balance += e.amount;   // вернуть деньги
       _expenses.removeAt(i);
     });
   },
-  child: _ExpenseItem(
-    title: e.title,
-    subtitle: '${e.category} • сегодня',
-    amount: '-${_format(e.amount)} ${_currency.symbol}',
-    icon: icon,
-    color: color,
+
+  // 👇 ВАЖНО: GestureDetector
+  child: GestureDetector(
+    onTap: () async {
+      final updated = await Navigator.push<Expense>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AddExpenseScreen(
+            balance: _balance + e.amount, // вернуть старую сумму
+            currency: _currency,
+            expense: e,                  // редактируем текущий
+          ),
+        ),
+      );
+
+      if (updated != null) {
+        setState(() {
+          _balance += e.amount;         // вернуть старое
+          _balance -= updated.amount;   // вычесть новое
+          _expenses[i] = updated;       // заменить расход
+        });
+      }
+    },
+
+    child: _ExpenseItem(
+      title: e.title,
+      subtitle: '${e.category} • сегодня',
+      amount: '-${_format(e.amount)} ${_currency.symbol}',
+      icon: icon,
+      color: color,
+    ),
   ),
 );
                       },

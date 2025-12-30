@@ -7,11 +7,12 @@ import '../models/expense.dart';
 class AddExpenseScreen extends StatefulWidget {
   final int balance;
   final Currency currency;
-
+  final Expense? expense;
   const AddExpenseScreen({
     super.key,
     required this.balance,
     required this.currency,
+    this.expense
   });
 
   @override
@@ -33,12 +34,22 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _CategoryItem('Здоровье', Icons.favorite),
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _controller.text = '0';
-  }
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _controller.text = '0';
+  // }
 
+@override
+void initState() {
+  super.initState();
+
+  if (widget.expense != null) {
+    _amount = widget.expense!.amount;
+    _category = widget.expense!.category;
+    _controller.text = _formatter.format(_amount);
+  }
+}
   @override
   void dispose() {
     _controller.dispose();
@@ -66,15 +77,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void _save() {
     if (_amount == 0) return;
 
-    Navigator.pop(
-      context,
-      Expense(
-        title: _category,
-        category: _category,
-        amount: _amount,
-        date: DateTime.now(),
-      ),
-    );
+Navigator.pop(
+  context,
+  Expense(
+    title: _category,
+    category: _category,
+    amount: _amount,
+    date: widget.expense?.date ?? DateTime.now(),
+  ),
+);
   }
 
   @override
