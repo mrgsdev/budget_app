@@ -150,7 +150,7 @@ class _BudgetSetupScreenState extends State<BudgetSetupScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    c.label,
+                    c.symbol,
                     style: TextStyle(
                       fontSize: 16,
                       color: selected ? Colors.black : Colors.grey,

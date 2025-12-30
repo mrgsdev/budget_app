@@ -5,7 +5,14 @@ import 'add_expense_screen.dart';
 import 'budget_setup_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final List<Expense> expenses;
+  final VoidCallback onExpensesChanged;
+  
+  const HomeScreen({
+    super.key,
+    required this.expenses,
+    required this.onExpensesChanged,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -245,11 +252,12 @@ return Dismissible(
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'home_fab', 
         backgroundColor: const Color(0xFFD6C19A),
         onPressed: _openAddExpense,
         child: const Icon(Icons.add, color: Colors.black),
       ),
-      bottomNavigationBar: const _BottomNav(),
+      
     );
   }
 }
@@ -488,28 +496,3 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-// ================= BOTTOM NAV =================
-
-class _BottomNav extends StatelessWidget {
-  const _BottomNav();
-
-  @override
-  Widget build(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: 0,
-      selectedItemColor: const Color(0xFFD6C19A),
-      unselectedItemColor: Colors.grey,
-      type: BottomNavigationBarType.fixed,
-      items: const [
-        BottomNavigationBarItem(
-            icon: Icon(Icons.home), label: 'Главная'),
-        BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart), label: 'Отчёты'),
-        BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance), label: 'Счета'),
-        BottomNavigationBarItem(
-            icon: Icon(Icons.settings), label: 'Настройки'),
-      ],
-    );
-  }
-}
