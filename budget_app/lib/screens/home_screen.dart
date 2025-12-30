@@ -190,14 +190,29 @@ class _HomeScreenState extends State<HomeScreen> {
                         final color =
                             _colors[e.category] ?? Colors.grey;
 
-                        return _ExpenseItem(
-                          title: e.title,
-                          subtitle: '${e.category} • сегодня',
-                          amount:
-                              '-${_format(e.amount)} ${_currency.symbol}',
-                          icon: icon,
-                          color: color,
-                        );
+   return Dismissible(
+  key: ValueKey(e.hashCode),
+  direction: DismissDirection.endToStart,
+  background: Container(
+    alignment: Alignment.centerRight,
+    padding: const EdgeInsets.only(right: 20),
+    color: Colors.red,
+    child: const Icon(Icons.delete, color: Colors.white),
+  ),
+  onDismissed: (_) {
+    setState(() {
+      _balance += e.amount;   // возвращаем деньги
+      _expenses.removeAt(i);
+    });
+  },
+  child: _ExpenseItem(
+    title: e.title,
+    subtitle: '${e.category} • сегодня',
+    amount: '-${_format(e.amount)} ${_currency.symbol}',
+    icon: icon,
+    color: color,
+  ),
+);
                       },
                     ),
             ),
