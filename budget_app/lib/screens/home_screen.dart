@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/currency.dart';
 import 'budget_setup_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -10,32 +11,54 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _balance = 45000;
+  int _spentToday = 0;
+  Currency _currency = Currency.rub;
 
-  // ----------- LOGIC -----------
+  // ---------- DATE & BUDGET LOGIC ----------
 
-  /// Осталось дней в текущем месяце (включая сегодня)
   int _remainingDays() {
     final now = DateTime.now();
-    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
-    return lastDayOfMonth.day - now.day + 1;
+    final lastDay = DateTime(now.year, now.month + 1, 0);
+    return lastDay.day - now.day + 1;
   }
 
+  int _dailyLimit() {
+    final days = _remainingDays();
+    if (days <= 0) return 0;
+    return (_balance / days).floor();
+  }
+
+  int _availableToday() {
+    return _dailyLimit() - _spentToday;
+  }
+
+  double _progress() {
+    if (_dailyLimit() == 0) return 0;
+    return _spentToday / _dailyLimit();
+  }
+
+  // ---------- NAVIGATION ----------
+
   Future<void> _openBudgetSetup() async {
-    final result = await Navigator.push<int>(
+    final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
         builder: (_) => BudgetSetupScreen(
           initialValue: _balance,
+          initialCurrency: _currency,
         ),
       ),
     );
 
     if (result != null) {
       setState(() {
-        _balance = result;
+        _balance = result['amount'];
+        _currency = result['currency'];
       });
     }
   }
+
+  // ---------- FORMAT ----------
 
   String _format(int value) {
     final s = value.toString();
@@ -50,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return buffer.toString();
   }
 
-  // ----------- UI -----------
+  // ---------- UI ----------
 
   @override
   Widget build(BuildContext context) {
@@ -62,10 +85,18 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
             _Header(),
             const SizedBox(height: 16),
-            _DailyBudgetCard(),
+            _DailyBudgetCard(
+              available: _availableToday(),
+              spent: _spentToday,
+              limit: _dailyLimit(),
+              progress: _progress(),
+              currency: _currency,
+              format: _format,
+            ),
             const SizedBox(height: 16),
             _InfoCards(
               balance: _format(_balance),
+              currency: _currency,
               remainingDays: _remainingDays(),
               onTapBalance: _openBudgetSetup,
             ),
@@ -110,16 +141,7 @@ class _Header extends StatelessWidget {
             ],
           ),
           const Spacer(),
-          Stack(
-            children: const [
-              Icon(Icons.notifications_none, size: 28),
-              Positioned(
-                right: 2,
-                top: 2,
-                child: CircleAvatar(radius: 4, backgroundColor: Colors.red),
-              )
-            ],
-          )
+          const Icon(Icons.notifications_none, size: 28),
         ],
       ),
     );
@@ -127,10 +149,26 @@ class _Header extends StatelessWidget {
 }
 
 //
-// ---------------- DAILY CARD ----------------
+// ---------------- DAILY BUDGET CARD ----------------
 //
 
 class _DailyBudgetCard extends StatelessWidget {
+  final int available;
+  final int spent;
+  final int limit;
+  final double progress;
+  final Currency currency;
+  final String Function(int) format;
+
+  const _DailyBudgetCard({
+    required this.available,
+    required this.spent,
+    required this.limit,
+    required this.progress,
+    required this.currency,
+    required this.format,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -149,22 +187,48 @@ class _DailyBudgetCard extends StatelessWidget {
           ),
         ),
         child: Column(
-          children: const [
-            Text(
+          children: [
+            const Text(
               'ДОСТУПНО СЕГОДНЯ',
               style: TextStyle(color: Colors.white54),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
-              '2 500 ₽',
-              style: TextStyle(
+              '${format(available)} ${currency.symbol}',
+              style: const TextStyle(
                 fontSize: 40,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFFD6C19A),
               ),
             ),
-            SizedBox(height: 12),
-            Text(
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Text(
+                  'Потрачено: ${format(spent)} ${currency.symbol}',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+                const Spacer(),
+                Text(
+                  'Лимит: ${format(limit)} ${currency.symbol}',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: progress.clamp(0, 1),
+                minHeight: 8,
+                backgroundColor: Colors.white12,
+                valueColor: const AlwaysStoppedAnimation(
+                  Color(0xFFD6C19A),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
               'Вы в пределах дневного бюджета ✨',
               style: TextStyle(color: Colors.white70),
             ),
@@ -181,11 +245,13 @@ class _DailyBudgetCard extends StatelessWidget {
 
 class _InfoCards extends StatelessWidget {
   final String balance;
+  final Currency currency;
   final int remainingDays;
   final VoidCallback onTapBalance;
 
   const _InfoCards({
     required this.balance,
+    required this.currency,
     required this.remainingDays,
     required this.onTapBalance,
   });
@@ -201,7 +267,7 @@ class _InfoCards extends StatelessWidget {
               onTap: onTapBalance,
               child: _InfoCard(
                 title: 'Остаток',
-                value: '$balance ₽',
+                value: '$balance ${currency.symbol}',
                 subtitle: '+12% к прошлому',
                 icon: Icons.account_balance_wallet,
                 subtitleColor: Colors.green,
@@ -256,10 +322,7 @@ class _InfoCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           if (subtitle.isNotEmpty)
             Text(subtitle, style: TextStyle(color: subtitleColor)),
@@ -276,20 +339,14 @@ class _InfoCard extends StatelessWidget {
 class _ExpensesHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: const [
-          Text(
-            'Сегодня',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          ),
-          Spacer(),
-          Text(
-            'Показать все',
-            style: TextStyle(color: Color(0xFFD6C19A)),
-          ),
-        ],
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Сегодня',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -300,78 +357,10 @@ class _ExpensesList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: const [
-        _ExpenseItem(
-          title: 'Кофе и круассан',
-          subtitle: 'Еда • 10:42',
-          amount: '-350 ₽',
-          icon: Icons.local_cafe,
-          iconColor: Colors.orange,
-        ),
-        _ExpenseItem(
-          title: 'Такси до работы',
-          subtitle: 'Транспорт • 09:15',
-          amount: '-420 ₽',
-          icon: Icons.directions_car,
-          iconColor: Colors.purple,
-        ),
-        _ExpenseItem(
-          title: 'Продукты',
-          subtitle: 'Супермаркет • Вчера',
-          amount: '-1 250 ₽',
-          icon: Icons.shopping_bag,
-          iconColor: Colors.blue,
-        ),
-      ],
-    );
-  }
-}
-
-class _ExpenseItem extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final String amount;
-  final IconData icon;
-  final Color iconColor;
-
-  const _ExpenseItem({
-    required this.title,
-    required this.subtitle,
-    required this.amount,
-    required this.icon,
-    required this.iconColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: iconColor.withOpacity(0.15),
-            child: Icon(icon, color: iconColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(fontWeight: FontWeight.w500)),
-                Text(subtitle,
-                    style: const TextStyle(color: Colors.grey)),
-              ],
-            ),
-          ),
-          Text(
-            amount,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-        ],
+    return const Center(
+      child: Text(
+        'Расходы появятся здесь',
+        style: TextStyle(color: Colors.grey),
       ),
     );
   }
