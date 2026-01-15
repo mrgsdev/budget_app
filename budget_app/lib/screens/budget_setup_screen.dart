@@ -71,57 +71,78 @@ class _BudgetSetupScreenState extends State<BudgetSetupScreen> {
         ),
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 16),
-          _currencySwitcher(),
-          const SizedBox(height: 48),
-          const Text(
-            'ОБЩИЙ ЛИМИТ',
-            style: TextStyle(color: Colors.grey, letterSpacing: 1.2),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: FittedBox(
-              child: Text(
-                _formattedAmount,
-                style: const TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.bold,
-                ),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).padding.bottom + 16,
               ),
-            ),
-          ),
-          const Spacer(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.pop(context, {
-                  'amount': int.parse(_rawAmount),
-                  'currency': _currency,
-                });
-              },
-              child: Container(
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD6C19A),
-                  borderRadius: BorderRadius.circular(18),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
                 ),
-                child: const Center(
-                  child: Text(
-                    'Сохранить',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                child: IntrinsicHeight(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 16),
+                      _currencySwitcher(),
+                      const SizedBox(height: 48),
+                      const Text(
+                        'ОБЩИЙ ЛИМИТ',
+                        style: TextStyle(color: Colors.grey, letterSpacing: 1.2),
+                      ),
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: FittedBox(
+                          child: Text(
+                            _formattedAmount,
+                            style: const TextStyle(
+                              fontSize: 48,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.pop(context, {
+                              'amount': int.parse(_rawAmount),
+                              'currency': _currency,
+                            });
+                          },
+                          child: Container(
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD6C19A),
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'Сохранить',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      _keyboard(),
+                      const SizedBox(height: 24),
+                    ],
                   ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          _keyboard(),
-          const SizedBox(height: 24),
-        ],
+            );
+          },
+        ),
       ),
     );
   }

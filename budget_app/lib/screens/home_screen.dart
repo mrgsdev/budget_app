@@ -165,6 +165,30 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+Future<void> _openAllExpenses() async {
+  final result = await Navigator.push<Map<String, dynamic>>(
+    context,
+    MaterialPageRoute(
+      builder: (_) => AllExpensesScreen(
+        expenses: _expenses,
+        balance: _balance,
+        currency: _currency,
+      ),
+    ),
+  );
+
+  if (result != null) {
+    setState(() {
+      _expenses
+        ..clear()
+        ..addAll(result['expenses']);
+      _balance = result['balance'];
+    });
+    await _saveExpenses();
+    await _saveBalance();
+  }
+}
+
   // ================= FORMAT =================
 
   String _format(int value) {
@@ -189,139 +213,155 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
       body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
-            const _Header(),
-            const SizedBox(height: 16),
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: const SizedBox(height: 12)),
+            SliverToBoxAdapter(child: const _Header()),
+            SliverToBoxAdapter(child: const SizedBox(height: 16)),
 
-            _DailyBudgetCard(
-              available: _availableToday(),
-              spent: _spentToday,
-              limit: _dailyLimit(),
-              progress: _progress(),
-              currency: _currency,
-              format: _format,
-            ),
-
-            const SizedBox(height: 16),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: _openBudgetSetup,
-                      child: _InfoCard(
-                        title: 'Остаток',
-                        value: '${_format(_balance)} ${_currency.symbol}',
-                        subtitle: '+12% к прошлому',
-                        icon: Icons.account_balance_wallet,
-                        subtitleColor: Colors.green,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _InfoCard(
-                      title: 'Осталось дней',
-                      value: '${_remainingDays()} дней',
-                      subtitle: '',
-                      icon: Icons.calendar_today,
-                      subtitleColor: Colors.transparent,
-                    ),
-                  ),
-                ],
+            SliverToBoxAdapter(
+              child: _DailyBudgetCard(
+                available: _availableToday(),
+                spent: _spentToday,
+                limit: _dailyLimit(),
+                progress: _progress(),
+                currency: _currency,
+                format: _format,
               ),
             ),
 
-            const SizedBox(height: 24),
-            const _ExpensesHeader(),
+            SliverToBoxAdapter(child: const SizedBox(height: 16)),
 
-            Expanded(
-              child: _expenses.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'Расходы появятся здесь',
-                        style: TextStyle(color: Colors.grey),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _openBudgetSetup,
+                        child: _InfoCard(
+                          title: 'Остаток',
+                          value: '${_format(_balance)} ${_currency.symbol}',
+                          subtitle: '+12% к прошлому',
+                          icon: Icons.account_balance_wallet,
+                          subtitleColor: Colors.green,
+                        ),
                       ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _expenses.length,
-                      itemBuilder: (_, i) {
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _InfoCard(
+                        title: 'Осталось дней',
+                        value: '${_remainingDays()} дней',
+                        subtitle: '',
+                        icon: Icons.calendar_today,
+                        subtitleColor: Colors.transparent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            SliverToBoxAdapter(child: const SizedBox(height: 24)),
+            SliverToBoxAdapter(
+              child: _ExpensesHeader(
+                onShowAll: _openAllExpenses,
+              ),
+            ),
+
+            _expenses.isEmpty
+                ? const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Center(
+                        child: Text(
+                          'Расходы появятся здесь',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    ),
+                  )
+                : SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, i) {
                         final e = _expenses[i];
                         final icon =
                             _icons[e.category] ?? Icons.attach_money;
                         final color =
                             _colors[e.category] ?? Colors.grey;
 
-return Dismissible(
-  key: ValueKey('${e.title}_${e.amount}_${e.date.millisecondsSinceEpoch}_$i'),
-  direction: DismissDirection.endToStart,
-  background: Container(
-    alignment: Alignment.centerRight,
-    padding: const EdgeInsets.only(right: 20),
-    color: Colors.red,
-    child: const Icon(Icons.delete, color: Colors.white),
-  ),
-  onDismissed: (_) async {
-    setState(() {
-      _balance += e.amount;   // вернуть деньги
-      _expenses.removeAt(i);
-    });
-    await _saveExpenses();
-    await _saveBalance();
-  },
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Dismissible(
+                            key: ValueKey(
+                              '${e.title}_${e.amount}_${e.date.millisecondsSinceEpoch}_$i',
+                            ),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              color: Colors.red,
+                              child: const Icon(Icons.delete, color: Colors.white),
+                            ),
+                            onDismissed: (_) async {
+                              setState(() {
+                                _balance += e.amount;
+                                _expenses.removeAt(i);
+                              });
+                              await _saveExpenses();
+                              await _saveBalance();
+                            },
+                            child: GestureDetector(
+                              onTap: () async {
+                                final updated = await Navigator.push<Expense>(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AddExpenseScreen(
+                                      balance: _balance + e.amount,
+                                      currency: _currency,
+                                      expense: e,
+                                    ),
+                                  ),
+                                );
 
-  // 👇 ВАЖНО: GestureDetector
-  child: GestureDetector(
-    onTap: () async {
-      final updated = await Navigator.push<Expense>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AddExpenseScreen(
-            balance: _balance + e.amount, // вернуть старую сумму
-            currency: _currency,
-            expense: e,                  // редактируем текущий
-          ),
-        ),
-      );
-
-      if (updated != null) {
-        setState(() {
-          _balance += e.amount;         // вернуть старое
-          _balance -= updated.amount;   // вычесть новое
-          _expenses[i] = updated;       // заменить расход
-        });
-        await _saveExpenses();
-        await _saveBalance();
-      }
-    },
-
-    child: _ExpenseItem(
-      title: e.title,
-      subtitle: '${e.category} • сегодня',
-      amount: '-${_format(e.amount)} ${_currency.symbol}',
-      icon: icon,
-      color: color,
-    ),
-  ),
-);
+                                if (updated != null) {
+                                  setState(() {
+                                    _balance += e.amount;
+                                    _balance -= updated.amount;
+                                    _expenses[i] = updated;
+                                  });
+                                  await _saveExpenses();
+                                  await _saveBalance();
+                                }
+                              },
+                              child: _ExpenseItem(
+                                title: e.title,
+                                subtitle: '${e.category} • сегодня',
+                                amount:
+                                    '-${_format(e.amount)} ${_currency.symbol}',
+                                icon: icon,
+                                color: color,
+                              ),
+                            ),
+                          ),
+                        );
                       },
+                      childCount: _expenses.length,
                     ),
-            ),
+                  ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 80)),
           ],
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        heroTag: 'home_fab', 
+        heroTag: 'home_fab',
         backgroundColor: const Color(0xFFD6C19A),
         onPressed: _openAddExpense,
         child: const Icon(Icons.add, color: Colors.black),
       ),
-      
     );
   }
 }
@@ -440,22 +480,26 @@ class _DailyBudgetCard extends StatelessWidget {
 // ================= EXPENSES =================
 
 class _ExpensesHeader extends StatelessWidget {
-  const _ExpensesHeader();
+  final VoidCallback onShowAll;
+  const _ExpensesHeader({required this.onShowAll});
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          Text(
+          const Text(
             'Сегодня',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
-          Spacer(),
-          Text(
-            'Показать все',
-            style: TextStyle(color: Color(0xFFD6C19A)),
+          const Spacer(),
+          GestureDetector(
+            onTap: onShowAll,
+            child: const Text(
+              'Показать все',
+              style: TextStyle(color: Color(0xFFD6C19A)),
+            ),
           ),
         ],
       ),
@@ -560,3 +604,36 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
+
+class AllExpensesScreen extends StatelessWidget {
+  final List<Expense> expenses;
+  final int balance;
+  final Currency currency;
+
+  const AllExpensesScreen({
+    super.key,
+    required this.expenses,
+    required this.balance,
+    required this.currency,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Все расходы'),
+      ),
+      body: ListView.builder(
+        itemCount: expenses.length,
+        itemBuilder: (context, index) {
+          final e = expenses[index];
+          return ListTile(
+            title: Text(e.title),
+            subtitle: Text(e.category),
+            trailing: Text('-${e.amount} ${currency.symbol}'),
+          );
+        },
+      ),
+    );
+  }
+}
